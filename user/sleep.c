@@ -3,25 +3,26 @@
 #include "user/user.h"
 
 int
-main(int argc, char* argv[]) {
+main(int argc, char *argv[])
+{
 
-    if (argc < 2) {
-        fprintf(2, "sleep: too few arguments\n");
-        return 1;
-    } else if (argc > 2) {
-        fprintf(2, "sleep: too many arguments\n");
-        return 1;
-    }
+  if (argc < 2) {
+    fprintf(2, "sleep: too few arguments\n");
+    return 1;
+  } else if (argc > 2) {
+    fprintf(2, "sleep: too many arguments\n");
+    return 1;
+  }
 
-    int time = atoi(argv[1]);
-    if (time <= 0) {
-        fprintf(2, "sleep: invalid time value\n");
-        return 1;
-    }
-    
-    printf("sleep: pausing for %d ticks...\n", time);
+  int time = atoi(argv[1]);
+  if (time <= 0) {
+    fprintf(2, "sleep: invalid time value\n");
+    return 1;
+  }
 
-    pause(time);
+  printf("sleep: pausing for %d ticks...\n", time);
 
-    return 0;
+  pause(time);
+
+  return 0;
 }
