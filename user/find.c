@@ -1,11 +1,40 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
+#include "kernel/param.h"
 #include "user/user.h"
 #include "kernel/fs.h"
 #include "kernel/fcntl.h"
 
 void
-lookInside(char *path, char *target)
+runCommand(char *path, char **command, int commandCount)
+{
+  char *args[MAXARG];
+  int i;
+
+  for (i = 0; i < commandCount; i++)
+    args[i] = command[i];
+
+  args[commandCount] = path;
+  args[commandCount + 1] = 0;
+
+  int pid = fork();
+
+  if (pid < 0) {
+    fprintf(2, "find: fork failed\n");
+    return;
+  }
+
+  if (pid == 0) {
+    exec(args[0], args);
+    fprintf(2, "find: exec %s failed\n", args[0]);
+    exit(1);
+  }
+
+  wait(0);
+}
+
+void
+lookInside(char *path, char *target, char **command, int commandCount)
 {
 
   char buf[512], *p;
@@ -48,8 +77,12 @@ lookInside(char *path, char *target)
       memmove(p, de.name, DIRSIZ);
       p[DIRSIZ] = 0;
 
-      if (strcmp(de.name, target) == 0)
-        printf("%s\n", buf);
+      if (strcmp(de.name, target) == 0) {
+        if (commandCount > 0)
+          runCommand(buf, command, commandCount);
+        else
+          printf("%s\n", buf);
+      }
 
       if (stat(buf, &st) < 0) {
         fprintf(2, "find: cannot stat %s\n", buf);
@@ -57,7 +90,7 @@ lookInside(char *path, char *target)
       }
 
       if (st.type == T_DIR)
-        lookInside(buf, target);
+        lookInside(buf, target, command, commandCount);
     }
     break;
   }
@@ -68,15 +101,21 @@ lookInside(char *path, char *target)
 int
 main(int argc, char *argv[])
 {
-
-  if (argc > 3) {
-    fprintf(2, "find: too many arguments\n");
-    return 1;
-  } else if (argc < 3) {
+  if (argc < 3) {
     fprintf(2, "find: too few arguments\n");
     return 1;
   }
 
-  lookInside(argv[1], argv[2]);
+  if (argc == 3) {
+    lookInside(argv[1], argv[2], 0, 0);
+    return 0;
+  }
+
+  if (strcmp(argv[3], "-exec") != 0 || argc < 5) {
+    fprintf(2, "find: invalid arguments\n");
+    return 1;
+  }
+
+  lookInside(argv[1], argv[2], &argv[4], argc - 4);
   return 0;
 }
