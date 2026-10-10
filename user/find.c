@@ -57,6 +57,17 @@ lookInside(char *path, char *target, char **command, int commandCount)
   case T_DEVICE:
     break;
   case T_FILE:
+    p = path;
+    for (char *s = path; *s; s++) {
+      if (*s == '/')
+        p = s + 1;
+    }
+    if (strcmp(p, target) == 0) {
+      if (commandCount > 0)
+        runCommand(path, command, commandCount);
+      else
+        printf("%s\n", path);
+    }
     break;
   case T_DIR:
     if (strlen(path) + 1 + DIRSIZ + 1 > sizeof buf) {
@@ -71,13 +82,13 @@ lookInside(char *path, char *target, char **command, int commandCount)
       if (de.inum == 0)
         continue;
 
-      if (strcmp(de.name, ".") == 0 || strcmp(de.name, "..") == 0)
-        continue;
-
       memmove(p, de.name, DIRSIZ);
       p[DIRSIZ] = 0;
 
-      if (strcmp(de.name, target) == 0) {
+      if (strcmp(p, ".") == 0 || strcmp(p, "..") == 0)
+        continue;
+
+      if (strcmp(p, target) == 0) {
         if (commandCount > 0)
           runCommand(buf, command, commandCount);
         else

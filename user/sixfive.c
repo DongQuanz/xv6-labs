@@ -5,7 +5,14 @@
 void
 processStr(char *str)
 {
-  int n = atoi(str);
+  int n = 0;
+  for (; *str; str++) {
+    int digit = *str - '0';
+    // Reject values outside the range of a signed 32-bit int.
+    if (n > (2147483647 - digit) / 10)
+      return;
+    n = n * 10 + digit;
+  }
   if (n % 5 == 0 || n % 6 == 0) {
     printf("%d\n", n);
   }
@@ -28,7 +35,10 @@ readFromSrc(int fd)
     for (int i = 0; i < n; i++) {
 
       if (flag && buf[i] >= '0' && buf[i] <= '9') {
-        num[cnt++] = buf[i];
+        if (cnt < sizeof(num) - 1)
+          num[cnt++] = buf[i];
+        else
+          flag = 0;
       } else if (strchr(sep, buf[i]) != 0) {
 
         if (flag && cnt > 0) {
