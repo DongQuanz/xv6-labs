@@ -1,23 +1,18 @@
 Q1:
-- syscall was called by usertrap() inside kernel/trap.c, as stated by using bt (backtrace)
+- syscall was called by usertrap() inside kernel/trap.c, as stated by using bt (backtrace) of the debugger.
 
 Q2:
-- The value of *p is:
-$1 = {lock = {locked = 0x0, name = 0x80007130, cpu = 0x0}, state = 0x4,
-  chan = 0x0, killed = 0x0, xstate = 0x0, pid = 0x1, parent = 0x0,
-  kstack = 0x3fffffd000, sz = 0x4000, pagetable = 0x87f52000,
-  trapframe = 0x87f56000, context = {ra = 0x8000133a, sp = 0x3fffffdc60,
-    s0 = 0x3fffffdc90, s1 = 0x80007cf0, s2 = 0x800078c0, s3 = 0x0,
-    s4 = 0x3, s5 = 0x80018990, s6 = 0x0, s7 = 0x182,
-    s8 = 0xffffffffffffffff, s9 = 0x400, s10 = 0x2, s11 = 0x38}, ofile = {
-    0x0 <repeats 16 times>}, cwd = 0x80015e00, name = {0x69, 0x6e, 0x69,
-    0x74, 0x0 <repeats 12 times>}}
+- The value of p->trapframe->a7 is 15.
 
 - p is a pointer to a struct, representing the current process running in the CPU. 
 This struct is defined inside proc.h
 
+- trapframe is the values of the registers that was reserved when CPU switched to operating a syscall.
+a7 is the name of the register holding the ID of the syscall that was called.
+a7 = 15 is equivalent to SYS_open
+
 Q3:
-- The value of sstatus is 0x200000022. When presented in binary, the 8th bit from right to left is 0, meaning it was previously in User mode. 
+- The value of sstatus is 0x200000022. When presented in binary, the bit 8 is 0, meaning it was previously in User mode. 
 This was defined inside the official RISC-V architecture for Supervisor Status (sstatus) register.
 
 Q4:
@@ -25,14 +20,15 @@ Q4:
 scause=0xd sepc=0x80001d4e stval=0x0
 panic: kerneltrap
 
-- In the kernel.asm, the corresponding line is:
+- In the kernel.asm, the line with the address sepc is:
 num = *(int *)0;
     80001d4e:	00002683          	lw	a3,0(zero) # 0 <_entry-0x80000000>
+As can be seen, the register corresponding to num is a3.
 
 Q5:
 - kernel crashed because of this line:
 num = *(int *)0;
-It tried to access the memory at the address 0x0, but this address doesn't exist inside the kernel's page table, which resulted in an error.
+It tried to access the memory at the address 0x0, but this address isn't mapped inside the kernel's page table, which resulted in an error.
 
 - scause = 0xd means that this is a load page fault. 
 And stval = 0x0 is the invalid memory address that xv6 tried to access.
