@@ -115,11 +115,16 @@ uint64
 sys_interpose(void)
 {
   int mask;
+  uint64 addr;
   char path[MAXPATH];
   struct proc *p = myproc();
 
+  if (p->blocked_mask != 0)
+    return -1;
+
   argint(0, &mask);
-  if (argstr(1, path, sizeof(path)) < 0)
+  argaddr(1, &addr);
+  if (addr == 0 || argstr(1, path, sizeof(path)) <= 0)
     return -1;
 
   p->blocked_mask = mask;
