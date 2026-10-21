@@ -103,4 +103,5 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   int blocked_mask;
+  char allowed_path[MAXPATH];
 };
