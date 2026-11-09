@@ -1,0 +1,32 @@
+Question 1:
+Each line printed by pgtbltest represents a page table entry (PTE)
+Each line includes:
++ va: virtual address of the page
++ pte: page table entry, which holds flags and the physical page number
++ pa: physical address of the page, which was calculated using PTE
++ perm: flags taken from PTE and printed independently, for better readability
+
+Flags inside perm: V (validity), R (read allowed), W (write allowed), X (executable), U (user mode allowed), A (accessed) and D (dirty, which means it was written on).
+
+Analysis of each page printed:
++ va 0x0 is where the machine code of pgtbltest are saved.
+perm 0x5B means V, R, X, U, A are enabled.
+
++ va 0x1000 is where the data of pgtbltest are saved.
+perm 0x17 means V, R, W, U are enabled.
+
++ va 0x2000 is the guard page, which stops the user from accessing beyond the user stack limit.
+perm 0x7 means V, R, W are enabled. U = 0, so user mode cannot access this page.
+
++ va 0x3000 is the user stack for saving data when executing functions. 
+perm 0xD7 means V, R, W, U, A, D are enabled.
+
++ Pages from va 0x4000 to 0x9000 has flag V = 0, which means they are unmapped.
+
++ Pages from va 0x3FFFFF6000 to 0x3FFFFFD000 has flag V = 0, which means they are unmapped.
+
++ va 0x3FFFFFE000 is the trapframe page, which stores the register values so that they can be restored when returning to user mode.
+perm 0xC7 means V, R, W, A, D are enabled.
+
++ va 0x3FFFFFF000 is the trampoline page, which holds the code for switching between user and kernel mode.
+perm 0x4B means V, R, X, A are enabled.
