@@ -56,6 +56,6 @@ Trapframe
  .. .. ..0x0000003ffffff000: pte 0x000000002000184b pa 0x0000000080006000 RX
 Trampoline
 
-R means read allowed, W means write allowed, X means executable and U means accessible from user mode.
+R means read allowed, W means write allowed, X means executable and U means accessible from user mode. If any flag isn't included, that action is prohibited (For example: RXU means write not allowed)
 
 The 6 leaf pages correspond to the 6 valid pages (V = 1) in the output of print_pgtbl() in Question 1. Their virtual addresses, PTEs and physical addresses all match.
