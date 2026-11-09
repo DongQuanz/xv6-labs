@@ -1,4 +1,5 @@
-Question 1:
+# Question 1:
+
 Each line printed by pgtbltest represents a page table entry (PTE)
 Each line includes:
 + va: virtual address of the page
@@ -30,3 +31,31 @@ perm 0xC7 means V, R, W, A, D are enabled.
 
 + va 0x3FFFFFF000 is the trampoline page, which holds the code for switching between user and kernel mode.
 perm 0x4B means V, R, X, A are enabled.
+
+
+# Question 2:
+
+vmprint() starts at the root page table of the process at 0x0000000087f25000. Then it recursively search using vmprint_walk() and print valid PTEs in a tree structure. Each .. represents a new level of the tree. In this example, PTEs with three .. are the leaf nodes, pointing to the physical pages that hold machine code or data of the process.
+
+There are 6 leaf pages in the output:
+ .. .. ..0x0000000000000000: pte 0x0000000021fc885b pa 0x0000000087f22000 RXU
+Program machine code
+
+ .. .. ..0x0000000000001000: pte 0x0000000021fc7c17 pa 0x0000000087f1f000 RWU
+Program data
+
+ .. .. ..0x0000000000002000: pte 0x0000000021fc7807 pa 0x0000000087f1e000 RW
+Stack guard
+
+ .. .. ..0x0000000000003000: pte 0x0000000021fc74d7 pa 0x0000000087f1d000 RWU
+User stack
+
+ .. .. ..0x0000003fffffe000: pte 0x0000000021fd08c7 pa 0x0000000087f42000 RW
+Trapframe
+
+ .. .. ..0x0000003ffffff000: pte 0x000000002000184b pa 0x0000000080006000 RX
+Trampoline
+
+R means read allowed, W means write allowed, X means executable and U means accessible from user mode.
+
+The 6 leaf pages correspond to the 6 valid pages (V = 1) in the output of print_pgtbl() in Question 1. Their virtual addresses, PTEs and physical addresses all match.
