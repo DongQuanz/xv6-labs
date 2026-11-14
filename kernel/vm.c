@@ -171,6 +171,8 @@ vmprint_walk(pagetable_t pagetable, int level, uint64 base)
              (pte & PTE_W) ? "W" : "",
              (pte & PTE_X) ? "X" : "",
              (pte & PTE_U) ? "U" : "");
+      if (level > 0)
+        printk(" superpage");
     }
     printk("\n");
 
@@ -189,33 +191,63 @@ vmprint(pagetable_t pagetable)
 #endif
 
 
+static pte_t *
+kwalk(pagetable_t pagetable, uint64 va, int level)
+{
+  if (va >= MAXVA)
+    panic("kwalk");
+
+  for (int i = 2; i > level; i--) {
+    pte_t *pte = &pagetable[PX(i, va)];
+    if (*pte & PTE_V) {
+      if (*pte & (PTE_R | PTE_W | PTE_X))
+        panic("kmappages: remap");
+      pagetable = (pagetable_t)PTE2PA(*pte);
+    } else {
+      pagetable = (pagetable_t)kalloc();
+      if (pagetable == 0)
+        return 0;
+      memset(pagetable, 0, PGSIZE);
+      *pte = PA2PTE(pagetable) | PTE_V;
+    }
+  }
+  return &pagetable[PX(level, va)];
+}
+
 static int
 kmappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 {
-  uint64 a, last;
-  pte_t *pte;
-
   if ((va % PGSIZE) != 0)
     panic("kmappages: va not aligned");
 
   if ((size % PGSIZE) != 0)
     panic("kmappages: size not aligned");
 
+  if ((pa % PGSIZE) != 0)
+    panic("kmappages: pa not aligned");
+
   if (size == 0)
     panic("kmappages: size");
 
-  a = va;
-  last = va + size - PGSIZE;
-  for (;;) {
-    if ((pte = walk(pagetable, a, 1)) == 0)
+  while (size > 0) {
+    uint64 pagesize = PGSIZE;
+    int level = 0;
+#ifdef LAB_PGTBL
+    if (va % SUPERPGSIZE == 0 && pa % SUPERPGSIZE == 0 &&
+        size >= SUPERPGSIZE) {
+      pagesize = SUPERPGSIZE;
+      level = 1;
+    }
+#endif
+    pte_t *pte = kwalk(pagetable, va, level);
+    if (pte == 0)
       return -1;
     if (*pte & PTE_V)
       panic("kmappages: remap");
     *pte = PA2PTE(pa) | perm | PTE_V;
-    if (a == last)
-      break;
-    a += PGSIZE;
-    pa += PGSIZE;
+    va += pagesize;
+    pa += pagesize;
+    size -= pagesize;
   }
   return 0;
 }
