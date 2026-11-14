@@ -59,3 +59,12 @@ Trampoline
 R means read allowed, W means write allowed, X means executable and U means accessible from user mode. If any flag isn't included, that action is prohibited (For example: RXU means write not allowed)
 
 The 6 leaf pages correspond to the 6 valid pages (V = 1) in the output of print_pgtbl() in Question 1. Their virtual addresses, PTEs and physical addresses all match.
+
+
+# Question 3:
+
+uptime() could be made faster by storing the number of clock ticks since boot in a page that user mode can only read. The kernel would update this value on each timer tick, and a user function could read it directly instead of trapping into the kernel. Since ticks are shared by all processes, one shared physical page would avoid updating a separate copy for every process. Reads and writes of the counter must be synchronized so user mode sees a consistent value.
+
+sbrk(0) could also benefit from the per-process USYSCALL page. This call only returns the current process memory size without changing it. The kernel could store that size in the shared page and update it whenever the size changes, including after fork and exec. A user function could then read the size directly. Calls that grow or shrink memory would still need to enter the kernel.
+
+This approach works for calls that only read information the kernel can safely expose. The user mapping must remain read-only so programs cannot change the kernel-maintained values.
