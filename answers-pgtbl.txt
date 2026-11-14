@@ -68,3 +68,13 @@ uptime() could be made faster by storing the number of clock ticks since boot in
 sbrk(0) could also benefit from the per-process USYSCALL page. This call only returns the current process memory size without changing it. The kernel could store that size in the shared page and update it whenever the size changes, including after fork and exec. A user function could then read the size directly. Calls that grow or shrink memory would still need to enter the kernel.
 
 This approach works for calls that only read information the kernel can safely expose. The user mapping must remain read-only so programs cannot change the kernel-maintained values.
+
+
+# Question 4:
+
+The kernel page table has 95 superpage PTEs. The kernel vmprint output shows these as level-1 leaf entries with the "superpage" label:
++ 32 entries cover the 64 MiB PLIC region from 0x0c000000 to 0x10000000.
++ 63 entries cover 126 MiB of RAM from 0x80200000 to 0x88000000.
+The end addresses above are exclusive. The first 2 MiB of RAM still uses 4 KiB mappings because it contains kernel text and data with different permissions. UART, virtio, the trampoline and kernel stacks also keep their 4 KiB mappings. The inspected kernel page table has 579 regular leaf PTEs.
+
+Each 2 MiB superpage replaces 512 regular 4 KiB mappings. Without that superpage, these mappings would require one bottom-level page-table page containing 512 PTEs. Therefore, 95 superpages save 95 bottom-level page-table pages: 95 * 4096 = 389120 bytes, or 380 KiB. This is memory saved for page tables; the amount of physical memory being mapped does not change.
