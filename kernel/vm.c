@@ -189,13 +189,44 @@ vmprint(pagetable_t pagetable)
 #endif
 
 
+static int
+kmappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
+{
+  uint64 a, last;
+  pte_t *pte;
+
+  if ((va % PGSIZE) != 0)
+    panic("kmappages: va not aligned");
+
+  if ((size % PGSIZE) != 0)
+    panic("kmappages: size not aligned");
+
+  if (size == 0)
+    panic("kmappages: size");
+
+  a = va;
+  last = va + size - PGSIZE;
+  for (;;) {
+    if ((pte = walk(pagetable, a, 1)) == 0)
+      return -1;
+    if (*pte & PTE_V)
+      panic("kmappages: remap");
+    *pte = PA2PTE(pa) | perm | PTE_V;
+    if (a == last)
+      break;
+    a += PGSIZE;
+    pa += PGSIZE;
+  }
+  return 0;
+}
+
 // add a mapping to the kernel page table.
 // only used when booting.
 // does not flush TLB or enable paging.
 void
 kvmmap(pagetable_t kpgtbl, uint64 va, uint64 pa, uint64 sz, int perm)
 {
-  if (mappages(kpgtbl, va, sz, pa, perm) != 0)
+  if (kmappages(kpgtbl, va, sz, pa, perm) != 0)
     panic("kvmmap");
 }
 
