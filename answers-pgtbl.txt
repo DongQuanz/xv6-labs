@@ -1,64 +1,81 @@
 # Question 1:
 
-Each line printed by pgtbltest represents a page table entry (PTE)
-Each line includes:
-+ va: virtual address of the page
-+ pte: page table entry, which holds flags and the physical page number
-+ pa: physical address of the page, which was calculated using PTE
-+ perm: flags taken from PTE and printed independently, for better readability
+Each line printed by print_pgtbl() describes a page-table entry:
++ va: the virtual address of the page.
++ pte: the entry containing the physical page number and flags.
++ pa: the physical address extracted from the PTE.
++ perm: the low flag bits of the PTE.
 
-Flags inside perm: V (validity), R (read allowed), W (write allowed), X (executable), U (user mode allowed), A (accessed) and D (dirty, which means it was written on).
+V means valid, R means readable, W means writable, X means executable, U means accessible from user mode, A means accessed and D means dirty (written). User access requires U as well as the appropriate R, W or X permission.
 
-Analysis of each page printed:
-+ va 0x0 is where the machine code of pgtbltest are saved.
-perm 0x5B means V, R, X, U, A are enabled.
+The following explanation uses the final pgtbltest output after adding USYSCALL. Physical addresses and A/D bits can differ between runs.
 
-+ va 0x1000 is where the data of pgtbltest are saved.
-perm 0x17 means V, R, W, U are enabled.
++ va 0x0 contains the first page of program machine code.
+perm 0x5B enables V, R, X, U and A. User mode can read and execute it, but cannot write it.
 
-+ va 0x2000 is the guard page, which stops the user from accessing beyond the user stack limit.
-perm 0x7 means V, R, W are enabled. U = 0, so user mode cannot access this page.
++ va 0x1000 contains the second page of program machine code.
+perm 0x1B enables V, R, X and U. User mode can read and execute it, but cannot write it. A and D are clear in this snapshot.
 
-+ va 0x3000 is the user stack for saving data when executing functions. 
-perm 0xD7 means V, R, W, U, A, D are enabled.
++ va 0x2000 contains program data and BSS.
+perm 0x17 enables V, R, W and U. User mode can read and write it, but cannot execute it.
 
-+ Pages from va 0x4000 to 0x9000 has flag V = 0, which means they are unmapped.
++ va 0x3000 is the stack guard.
+perm 0x7 enables V, R and W. U is clear, so user mode cannot access it. It catches accesses below the user stack.
 
-+ Pages from va 0x3FFFFF6000 to 0x3FFFFFD000 has flag V = 0, which means they are unmapped.
++ va 0x4000 is the user stack.
+perm 0xD7 enables V, R, W, U, A and D. User mode can read and write it, but cannot execute it.
 
-+ va 0x3FFFFFE000 is the trapframe page, which stores the register values so that they can be restored when returning to user mode.
-perm 0xC7 means V, R, W, A, D are enabled.
++ The printed pages from va 0x5000 through 0x9000 are unmapped.
+Their PTEs are zero, so V and all permission bits are clear.
 
-+ va 0x3FFFFFF000 is the trampoline page, which holds the code for switching between user and kernel mode.
-perm 0x4B means V, R, X, A are enabled.
++ The printed pages from va 0x3FFFFF6000 through 0x3FFFFFC000 are also unmapped.
+Their PTEs are zero.
+
++ va 0x3FFFFFD000 is the USYSCALL page containing the current process PID.
+perm 0x13 enables V, R and U. User mode can read it through ugetpid(), but cannot write or execute it.
+
++ va 0x3FFFFFE000 is the trapframe, which stores saved registers for trap handling.
+perm 0xC7 enables V, R, W, A and D. U is clear, so the page is not accessible from user mode.
+
++ va 0x3FFFFFF000 is the trampoline, which contains trap entry and return code.
+perm 0x4B enables V, R, X and A. U and W are clear, so it is executable in supervisor mode and is neither user-accessible nor writable.
+
+The first 10 and last 10 printed entries contain 8 valid leaf mappings and 12 unmapped pages. Their physical addresses are not necessarily consecutive.
 
 
 # Question 2:
 
-vmprint() starts at the root page table of the process at 0x0000000087f25000. Then it recursively search using vmprint_walk() and print valid PTEs in a tree structure. Each .. represents a new level of the tree. In this example, PTEs with three .. are the leaf nodes, pointing to the physical pages that hold machine code or data of the process.
+vmprint() starts at the process's root page table, 0x0000000087f81000 in this run. vmprint_walk() recursively visits valid entries and prints the Sv39 tree. Each " .." indicates one level: level 2, level 1 and level 0. Non-leaf entries point to lower-level page-table pages.
 
-There are 6 leaf pages in the output:
- .. .. ..0x0000000000000000: pte 0x0000000021fc885b pa 0x0000000087f22000 RXU
-Program machine code
+There are 8 leaf pages in this user page table. They all use 4 KiB mappings at level 0, so each leaf line has three " .." prefixes:
 
- .. .. ..0x0000000000001000: pte 0x0000000021fc7c17 pa 0x0000000087f1f000 RWU
-Program data
+ .. .. ..0x0000000000000000: pte 0x0000000021fdf85b pa 0x0000000087f7e000 RXU
+Program machine code: user mode can read and execute this page, but cannot write it.
 
- .. .. ..0x0000000000002000: pte 0x0000000021fc7807 pa 0x0000000087f1e000 RW
-Stack guard
+ .. .. ..0x0000000000001000: pte 0x0000000021fdec1b pa 0x0000000087f7b000 RXU
+The second page of program machine code, also readable and executable from user mode, but not writable.
 
- .. .. ..0x0000000000003000: pte 0x0000000021fc74d7 pa 0x0000000087f1d000 RWU
-User stack
+ .. .. ..0x0000000000002000: pte 0x0000000021fde817 pa 0x0000000087f7a000 RWU
+Program data and BSS: user mode can read and write this page, but cannot execute it.
 
- .. .. ..0x0000003fffffe000: pte 0x0000000021fd08c7 pa 0x0000000087f42000 RW
-Trapframe
+ .. .. ..0x0000000000003000: pte 0x0000000021fde407 pa 0x0000000087f79000 RW
+Stack guard: U is clear, so user mode cannot access this page even though R and W are set.
 
- .. .. ..0x0000003ffffff000: pte 0x000000002000184b pa 0x0000000080006000 RX
-Trampoline
+ .. .. ..0x0000000000004000: pte 0x0000000021fde0d7 pa 0x0000000087f78000 RWU
+User stack: user mode can read and write this page, but cannot execute it.
 
-R means read allowed, W means write allowed, X means executable and U means accessible from user mode. If any flag isn't included, that action is prohibited (For example: RXU means write not allowed)
+ .. .. ..0x0000003fffffd000: pte 0x0000000021fec413 pa 0x0000000087fb1000 RU
+USYSCALL: contains the PID used by ugetpid(). User mode can read it, but cannot write or execute it.
 
-The 6 leaf pages correspond to the 6 valid pages (V = 1) in the output of print_pgtbl() in Question 1. Their virtual addresses, PTEs and physical addresses all match.
+ .. .. ..0x0000003fffffe000: pte 0x0000000021fe7cc7 pa 0x0000000087f9f000 RW
+Trapframe: stores saved registers for trap handling. It is readable and writable by the kernel; U is clear, so user mode cannot access it.
+
+ .. .. ..0x0000003ffffff000: pte 0x0000000020001c4b pa 0x0000000080007000 RX
+Trampoline: contains trap entry and return code. It is readable and executable in supervisor mode, but not writable or directly accessible from user mode.
+
+These 8 leaf mappings correspond exactly to the 8 valid entries printed by print_pgtbl() in Question 1: their virtual addresses, PTE values and physical addresses match in this run. The other 12 entries shown by print_pgtbl() are invalid and are skipped by vmprint(). Non-leaf entries printed by vmprint() describe the tree itself and are not additional code or data pages.
+
+RXU permits user reads and execution, but not writes. RWU permits user reads and writes, but not execution. RU permits only user reads. RW and RX without U do not permit user access. vmprint() prints R/W/X/U permissions; V/A/D are explained separately in Question 1.
 
 
 # Question 3:
